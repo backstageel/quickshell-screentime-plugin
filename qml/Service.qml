@@ -232,9 +232,10 @@ Item {
     // Tracking key for an editor window: its project bucket when the title
     // exposes a workspace, "" otherwise so the caller keeps the editor key.
     function editorProjectKey(appId, title) {
-        if (!Model.isEditorApp(Model.canonicalApp(appId)))
+        var editor = Model.canonicalApp(appId);
+        if (!Model.isEditorApp(editor))
             return "";
-        return Model.projectKey(Model.projectForTitle(title));
+        return Model.projectKey(Model.projectForTitle(title), editor);
     }
 
     // Key the focused window should be accruing to right now. An app is

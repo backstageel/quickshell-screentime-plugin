@@ -80,3 +80,35 @@ test("the panel shows the project name with its case intact", () => {
   // A plain app key still lowercases, so the two never look alike.
   assert.equal(M.displayName("Code"), "code")
 })
+
+test("the key records which editor the project was open in", () => {
+  assert.equal(M.projectKey("Claude", "code"), "project:code:Claude")
+  assert.equal(M.projectKey("afarmo", "cursor"), "project:cursor:afarmo")
+  assert.equal(M.displayName(M.projectKey("Claude", "code")), "Claude (code)")
+  assert.equal(
+    M.displayName(M.projectKey("afarmo", "cursor")),
+    "afarmo (cursor)",
+  )
+})
+
+test("a workspace name containing a colon still round-trips", () => {
+  const k = M.projectKey("a:b", "code")
+  assert.deepEqual(M.projectParts(k), { editor: "code", name: "a:b" })
+  assert.equal(M.displayName(k), "a:b (code)")
+})
+
+test("keys written before the editor was recorded still read as a name", () => {
+  assert.deepEqual(M.projectParts("project:Claude"), {
+    editor: "",
+    name: "Claude",
+  })
+  assert.equal(M.displayName("project:Claude"), "Claude")
+})
+
+test("an unknown head is treated as part of the name, not an editor", () => {
+  // "notanaeditor" is not in EDITOR_APP_KEYS, so the whole rest is the name.
+  assert.deepEqual(M.projectParts("project:notaneditor:x"), {
+    editor: "",
+    name: "notaneditor:x",
+  })
+})

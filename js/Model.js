@@ -71,7 +71,10 @@ function displayName(app) {
 
   // Per-project editor buckets (see projectForTitle). Case is preserved:
   // a workspace is a folder name the user chose, not a hostname.
-  if (s.indexOf(PROJECT_PREFIX) === 0) return s.slice(PROJECT_PREFIX.length)
+  if (s.indexOf(PROJECT_PREFIX) === 0) {
+    var parts = projectParts(s)
+    return parts.editor ? parts.name + " (" + parts.editor + ")" : parts.name
+  }
 
   var webApp = s.match(CHROMIUM_WEB_APP_RE)
   if (webApp) return webApp[2].toLowerCase()
@@ -349,8 +352,35 @@ function projectForTitle(title) {
   return parts[parts.length - 1]
 }
 
-function projectKey(label) {
-  return label ? PROJECT_PREFIX + String(label) : ""
+// Keys carry the editor so the panel can tell a VSCode workspace from a
+// Cursor one, and so "Claude" the project never reads like "claude.ai" the
+// site: project:<editor>:<name>. Keys written before the editor was recorded
+// have no second segment and still render as a bare name.
+function projectKey(label, editor) {
+  if (!label) return ""
+  var name = String(label)
+  // The editor segment is a canonical app key, so stripping any colon keeps
+  // the split on the first colon unambiguous even when the workspace name
+  // itself contains one.
+  var who = editor ? String(editor).toLowerCase().replace(/:/g, "") : ""
+  if (!who) return PROJECT_PREFIX + name
+  return PROJECT_PREFIX + who + ":" + name
+}
+
+// Splits "project:<editor>:<name>" into { editor, name }. The head counts as
+// an editor only when it is a known editor key, so a workspace whose own name
+// contains a colon is never mistaken for an editor segment. Legacy keys
+// written before the editor was recorded come back with an empty editor.
+function projectParts(app) {
+  if (!isProjectKey(app)) return { editor: "", name: "" }
+  var rest = String(app).slice(PROJECT_PREFIX.length)
+  var cut = rest.indexOf(":")
+  if (cut !== -1) {
+    var head = rest.slice(0, cut)
+    if (Object.prototype.hasOwnProperty.call(EDITOR_APP_KEYS, head))
+      return { editor: head, name: rest.slice(cut + 1) }
+  }
+  return { editor: "", name: rest }
 }
 
 function isProjectKey(app) {
@@ -2258,6 +2288,7 @@ if (typeof module !== "undefined" && module && module.exports) {
     normalizeEditorTitle: normalizeEditorTitle,
     projectForTitle: projectForTitle,
     projectKey: projectKey,
+    projectParts: projectParts,
     isProjectKey: isProjectKey,
     displayName: displayName,
     parseIgnoredApps: parseIgnoredApps,
