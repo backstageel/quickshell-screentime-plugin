@@ -229,9 +229,19 @@ Item {
         return Model.siteKey(Model.siteForTitle(title, root.siteRules));
     }
 
-    // Key the focused window should be accruing to right now.
+    // Tracking key for an editor window: its project bucket when the title
+    // exposes a workspace, "" otherwise so the caller keeps the editor key.
+    function editorProjectKey(appId, title) {
+        if (!Model.isEditorApp(Model.canonicalApp(appId)))
+            return "";
+        return Model.projectKey(Model.projectForTitle(title));
+    }
+
+    // Key the focused window should be accruing to right now. An app is
+    // either a browser or an editor, never both, so probe order is
+    // irrelevant; the resolved app name is the fallback for everything else.
     function trackingKeyFor(appId, title) {
-        return root.browserSiteKey(appId, title) || Model.resolveAppName(appId, root.appAliases);
+        return root.browserSiteKey(appId, title) || root.editorProjectKey(appId, title) || Model.resolveAppName(appId, root.appAliases);
     }
 
     // Tab switches inside a browser never touch activeToplevel, so the bucket
@@ -245,7 +255,8 @@ Item {
         // change that arrives while locked or with the screensaver up.
         if (root.sessionLocked || root.screensaverActive)
             return;
-        if (!Model.isBrowserApp(Model.canonicalApp(root.rawApp)))
+        var canon = Model.canonicalApp(root.rawApp);
+        if (!Model.isBrowserApp(canon) && !Model.isEditorApp(canon))
             return;
         var want = root.trackingKeyFor(root.rawApp, root.activeTitle);
         if (!want || want === root.activeApp)
@@ -414,7 +425,7 @@ Item {
         // Non-object sections are discarded with a single warning.
         var clean = Model.sanitizeHistory(historyAdapter.days, historyAdapter.months, historyAdapter.years);
         if (clean.days !== historyAdapter.days || clean.months !== historyAdapter.months || clean.years !== historyAdapter.years)
-            console.warn("agx.screen-time: history.json has malformed sections; ignoring them");
+            console.warn("backstageel.screen-time: history.json has malformed sections; ignoring them");
         var d = clean.days;
         var m = clean.months;
         // Load-time drops feed the archive too.
@@ -447,7 +458,7 @@ Item {
 
     function onHistoryLoadFailed() {
         // Corrupt files are preserved aside; tracking starts empty immediately.
-        console.warn("agx.screen-time: history load failed, starting empty");
+        console.warn("backstageel.screen-time: history load failed, starting empty");
         if (!root.backupAttempted) {
             root.backupAttempted = true;
             root.backupPending = true;
@@ -513,11 +524,11 @@ Item {
             // Retry with capped backoff; suspend after 6 straight failures.
             root.saveFailCount++;
             if (root.saveFailCount > 6) {
-                console.warn("agx.screen-time: history save failed (" + FileViewError.toString(error) + "), suspending retries until next change");
+                console.warn("backstageel.screen-time: history save failed (" + FileViewError.toString(error) + "), suspending retries until next change");
                 return;
             }
             var delay = Math.min(1500 * Math.pow(2, root.saveFailCount - 1), 60000);
-            console.warn("agx.screen-time: history save failed (" + FileViewError.toString(error) + "), retrying in " + delay + "ms");
+            console.warn("backstageel.screen-time: history save failed (" + FileViewError.toString(error) + "), retrying in " + delay + "ms");
             saveRetryTimer.interval = delay;
             saveRetryTimer.restart();
         }
@@ -614,7 +625,7 @@ Item {
         onExited: {
             var err = resolverErr.text.trim();
             if (err)
-                console.warn("agx.screen-time: resolver stderr:", err);
+                console.warn("backstageel.screen-time: resolver stderr:", err);
             root.applyResolvedApp(resolverOut.text.trim());
         }
     }
@@ -656,7 +667,7 @@ Item {
             root.resolveInFlight = false;
             root.resolveForApp = "";
             if (root.debugLogging)
-                console.warn("agx.screen-time: lock started");
+                console.warn("backstageel.screen-time: lock started");
             var now = Date.now();
             applyState(State.closeActiveBucket(root, root.activeApp, root.activeStart, now, root.todayKey, root.suspendGapMs, root.lastTick));
             root.persist();
@@ -664,7 +675,7 @@ Item {
             var endedAt = Date.now();
             var duration = root.lockStartedAt ? endedAt - root.lockStartedAt : 0;
             if (root.debugLogging)
-                console.warn("agx.screen-time: lock ended, duration=" + duration + "ms");
+                console.warn("backstageel.screen-time: lock ended, duration=" + duration + "ms");
             root.lockStartedAt = 0;
             // Deferred: with 10s state sources an "unpaused" reading can be
             // stale (screensaver flag clearing just before lock engages).
@@ -682,7 +693,7 @@ Item {
             root.screensaverStartedAt = Date.now();
             root.cancelResume();
             if (root.debugLogging)
-                console.warn("agx.screen-time: screensaver started");
+                console.warn("backstageel.screen-time: screensaver started");
             var now = Date.now();
             applyState(State.closeActiveBucket(root, root.activeApp, root.activeStart, now, root.todayKey, root.suspendGapMs, root.lastTick));
             root.persist();
@@ -690,7 +701,7 @@ Item {
             var endedAt = Date.now();
             var duration = root.screensaverStartedAt ? endedAt - root.screensaverStartedAt : 0;
             if (root.debugLogging)
-                console.warn("agx.screen-time: screensaver ended, duration=" + duration + "ms");
+                console.warn("backstageel.screen-time: screensaver ended, duration=" + duration + "ms");
             root.screensaverStartedAt = 0;
             if (!root.sessionLocked)
                 root.scheduleResume();
@@ -744,7 +755,7 @@ Item {
                 // Sandboxed serviceFor may never resolve these (scoped to a
                 // plugin's own service). Warn once instead of failing silent.
                 root.serviceLookupWarned = true;
-                console.warn("agx.screen-time: omarchy.lock/omarchy.idle services unavailable after 10s; " + "falling back to a persistent lock watcher (~10s pause accuracy)");
+                console.warn("backstageel.screen-time: omarchy.lock/omarchy.idle services unavailable after 10s; " + "falling back to a persistent lock watcher (~10s pause accuracy)");
             }
         }
     }
