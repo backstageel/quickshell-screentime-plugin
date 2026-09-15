@@ -199,6 +199,25 @@ function isSiteKey(app) {
 // "Google Docs" must win before any generic Google rule is added.
 function defaultSiteRules() {
   return [
+    {
+      match:
+        "\\bGitHub\\b|·\\s*(?:Issue|Pull Request|Discussion)\\s*#\\d+|^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(?::|\\s*·)",
+      site: "github.com",
+    },
+    { match: "\\bPesquisa Google\\b|\\bGoogle Search\\b", site: "google.com" },
+    {
+      match: "\\b(?:Documentos|Planilhas|Apresentações) Google\\b",
+      site: "docs.google.com",
+    },
+    {
+      match: "\\bGoogle Meet\\b|^Meet\\s*[-–]\\s*[a-z]{3}-[a-z]{4}-[a-z]{3}",
+      site: "meet.google.com",
+    },
+    { match: "\\bAFARMO\\b|\\bafarmo\\.test\\b", site: "afarmo" },
+    { match: "\\bEnviro360\\b|\\benviro360\\.test\\b", site: "enviro360" },
+    { match: "\\be-?Ordem\\b|\\be-ordem\\.test\\b", site: "e-ordem" },
+    { match: "\\bhostmoz\\.(?:net|co\\.mz)\\b", site: "hostmoz.net" },
+    { match: "\\b[a-z0-9-]+\\.test\\b", site: "dev.local" },
     { match: "\\bWhatsApp\\b", site: "whatsapp.com" },
     { match: "\\bMessenger\\b", site: "messenger.com" },
     { match: "\\bFacebook\\b", site: "facebook.com" },
